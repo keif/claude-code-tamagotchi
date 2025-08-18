@@ -61,6 +61,10 @@ export interface Config {
   groqModel: string;
   groqTimeout: number;
   groqMaxRetries: number;
+  openaiApiKey?: string;
+  openaiModel: string;
+  openaiTimeout: number;
+  openaiMaxRetries: number;
   moodDecayRate: number;
   annoyedThreshold: number;
   angryThreshold: number;
@@ -126,6 +130,10 @@ export const config: Config = {
   groqModel: process.env.PET_GROQ_MODEL || 'openai/gpt-oss-20b',
   groqTimeout: parseInt(process.env.PET_GROQ_TIMEOUT || '2000'),
   groqMaxRetries: parseInt(process.env.PET_GROQ_MAX_RETRIES || '2'),
+  openaiApiKey: process.env.PET_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  openaiModel: process.env.PET_OPENAI_MODEL || 'gpt-3.5-turbo',
+  openaiTimeout: parseInt(process.env.PET_OPENAI_TIMEOUT || '2000'),
+  openaiMaxRetries: parseInt(process.env.PET_OPENAI_MAX_RETRIES || '2'),
   moodDecayRate: parseInt(process.env.PET_MOOD_DECAY_RATE || '5'),
   annoyedThreshold: parseInt(process.env.PET_ANNOYED_THRESHOLD || '3'),
   angryThreshold: parseInt(process.env.PET_ANGRY_THRESHOLD || '5'),

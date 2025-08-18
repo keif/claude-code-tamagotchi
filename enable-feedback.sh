@@ -30,6 +30,11 @@ export PET_GROQ_API_KEY="your-groq-api-key-here"  # Get from https://console.gro
 export PET_GROQ_MODEL="openai/gpt-oss-20b"  # Best for quality. Alt: llama-3.1-8b-instant for speed
 export PET_GROQ_TIMEOUT=3000
 export PET_GROQ_MAX_RETRIES=2
+# OpenAI API Configuration (REQUIRED)
+export PET_OPENAI_API_KEY="your-openai-api-key-here"  # Get from https://platform.openai.com/api-keys
+export PET_OPENAI_MODEL="gpt-3.5-turbo"  # Options: gpt-3.5-turbo, gpt-4, gpt-4-turbo
+export PET_OPENAI_TIMEOUT=3000
+export PET_OPENAI_MAX_RETRIES=2
 
 # Processing Configuration (OPTIONAL - these are good defaults)
 export PET_FEEDBACK_CHECK_INTERVAL=5        # Check every 5 statusline updates
@@ -72,13 +77,18 @@ echo ""
 
 # Test with exports
 export PET_FEEDBACK_ENABLED=true
-# Check if API key is already set
-if [ -z "$PET_GROQ_API_KEY" ]; then
-  echo "Warning: PET_GROQ_API_KEY not set. The test will run without AI feedback."
-  echo "Get your API key from: https://console.groq.com/keys"
+# Check for API keys (Groq or OpenAI)
+if [ -z "$PET_GROQ_API_KEY" ] && [ -z "$PET_OPENAI_API_KEY" ]; then
+  echo "Warning: No API key set. The test will run without AI feedback."
+  echo "Set one of the following:"
+  echo "  PET_GROQ_API_KEY   → https://console.groq.com/keys"
+  echo "  PET_OPENAI_API_KEY → https://platform.openai.com/api-keys"
   export PET_GROQ_API_KEY=""
+  export PET_OPENAI_API_KEY=""
 fi
+
 export PET_GROQ_MODEL="${PET_GROQ_MODEL:-openai/gpt-oss-20b}"
+export PET_OPENAI_MODEL="${PET_OPENAI_MODEL:-gpt-3.5-turbo}"
 export PET_FEEDBACK_DEBUG=true
 export PET_FEEDBACK_LOG_DIR="$LOG_DIR"
 export PET_FEEDBACK_CHECK_INTERVAL=1

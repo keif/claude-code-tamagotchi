@@ -31,6 +31,10 @@ export class FeedbackSystem {
       groqModel: config.groqModel,
       groqTimeout: config.groqTimeout,
       groqMaxRetries: config.groqMaxRetries
+      openaiApiKey: config.openaiApiKey,
+      openaiModel: config.openaiModel,
+      openaiTimeout: config.openaiTimeout,
+      openaiMaxRetries: config.openaiMaxRetries
     };
     
     this.analyzer = new TranscriptAnalyzer(feedbackConfig);
