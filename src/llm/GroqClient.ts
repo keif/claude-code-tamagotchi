@@ -1,7 +1,8 @@
 import Groq from 'groq-sdk';
 import { LLMAnalysisResult } from '../engine/feedback/types';
+import { ILLMProvider } from './LLMProvider';
 
-export class GroqClient {
+export class GroqClient implements ILLMProvider {
   private client: Groq | null = null;
   private model: string;
   private timeout: number;

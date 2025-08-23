@@ -7,7 +7,7 @@
 
 import { FeedbackDatabase } from '../engine/feedback/FeedbackDatabase';
 import { MessageProcessor } from '../engine/feedback/MessageProcessor';
-import { GroqClient } from '../llm/GroqClient';
+import { LLMProviderFactory, ILLMProvider } from '../llm/LLMProvider';
 import { 
   TranscriptMessage, 
   MessageMetadata, 
@@ -66,9 +66,16 @@ debug(`Worker started for session ${sessionId}`);
 
 // Configuration from environment
 const config = {
-  groqApiKey: process.env.PET_GROQ_API_KEY,
+  // AI Provider configuration
+  aiProvider: (process.env.PET_AI_PROVIDER as 'groq' | 'openai') || 'openai',
+  // Provider-specific config
+  groqApiKey: process.env.PET_GROQ_API_KEY || process.env.GROQ_API_KEY,
   groqModel: process.env.PET_GROQ_MODEL || 'openai/gpt-oss-20b',
   groqTimeout: parseInt(process.env.PET_GROQ_TIMEOUT || '2000'),
+  openaiApiKey: process.env.PET_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  openaiModel: process.env.PET_OPENAI_MODEL || 'gpt-3.5-turbo',
+  openaiTimeout: parseInt(process.env.PET_OPENAI_TIMEOUT || '2000'),
+  // Other config
   batchSize: parseInt(process.env.PET_FEEDBACK_BATCH_SIZE || '10'),
   staleLockTime: parseInt(process.env.PET_FEEDBACK_STALE_LOCK_TIME || '30000')
 };
@@ -76,11 +83,33 @@ const config = {
 // Initialize components
 const db = new FeedbackDatabase(dbPath);
 const processor = new MessageProcessor(db, config.staleLockTime);
-const groq = new GroqClient(
-  config.groqApiKey, 
-  config.groqModel, 
-  config.groqTimeout
-);
+
+// Create LLM provider based on configuration
+const providerConfig = {
+  provider: config.aiProvider,
+  apiKey: config.aiProvider === 'groq' ? config.groqApiKey : config.openaiApiKey,
+  model: config.aiProvider === 'groq' ? config.groqModel : config.openaiModel,
+  timeout: config.aiProvider === 'groq' ? config.groqTimeout : config.openaiTimeout,
+  maxRetries: 2
+};
+
+debug(`Using ${config.aiProvider.toUpperCase()} provider with model: ${providerConfig.model}`);
+let llmProvider: ILLMProvider;
+
+async function initializeLLMProvider() {
+  try {
+    llmProvider = await LLMProviderFactory.createProvider(providerConfig);
+    debug(`${config.aiProvider.toUpperCase()} provider initialized successfully`);
+  } catch (error) {
+    debug(`Failed to initialize ${config.aiProvider.toUpperCase()} provider: ${error}`);
+    process.exit(1);
+  }
+}
+
+// Main worker function
+async function runWorker() {
+  // Initialize LLM provider
+  await initializeLLMProvider();
 
 // Get recent funny observations for this session to avoid repetition
 if (petState) {
@@ -304,7 +333,7 @@ async function processMessage(
     }
     
     // Analyze user message with full context
-    const analysis = await groq.analyzeUserMessage(
+    const analysis = await llmProvider.analyzeUserMessage(
       userContent,
       sessionHistory
     );
@@ -486,11 +515,11 @@ async function processMessage(
   }
   
   // Analyze with LLM
-  debug(`Calling Groq API for analysis...`);
+  debug(`Calling ${config.aiProvider.toUpperCase()} API for analysis...`);
   debug(`User request: "${context.userRequest || 'No specific request'}"`);
   debug(`Claude actions: ${claudeActions.join(', ') || 'None'}`);
   
-  const analysis = await groq.analyzeExchange(
+  const analysis = await llmProvider.analyzeExchange(
     context.userRequest || 'No specific request',
     claudeActions,
     sessionHistory,
@@ -561,8 +590,12 @@ function getIconForFeedback(analysis: LLMAnalysisResult): string {
   }
 }
 
-// Run the analysis
-analyzeTranscript().then(() => {
+  // Run the analysis
+  await analyzeTranscript();
+} // End of runWorker function
+
+// Run the worker
+runWorker().then(() => {
   console.log('Analysis complete');
   process.exit(0);
 }).catch(error => {

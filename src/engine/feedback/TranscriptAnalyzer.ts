@@ -110,13 +110,19 @@ export class TranscriptAnalyzer {
       const message = messages[0];
       this.debug(`Processing message: ${message.uuid}`);
 
-      // Import dependencies
-      const { GroqClient } = await import('../../llm/GroqClient');
-      const groq = new GroqClient(
-        this.config.groqApiKey,
-        this.config.groqModel,
-        this.config.groqTimeout
-      );
+      // Import dependencies - use unified provider system
+      const { LLMProviderFactory } = await import('../../llm/LLMProvider');
+      
+      // Create provider configuration based on current config
+      const providerConfig = {
+        provider: this.config.aiProvider,
+        apiKey: this.config.aiProvider === 'groq' ? this.config.groqApiKey : this.config.openaiApiKey,
+        model: this.config.aiProvider === 'groq' ? this.config.groqModel : this.config.openaiModel,
+        timeout: this.config.aiProvider === 'groq' ? this.config.groqTimeout : this.config.openaiTimeout,
+        maxRetries: this.config.aiProvider === 'groq' ? this.config.groqMaxRetries : this.config.openaiMaxRetries
+      };
+      
+      const llmProvider = await LLMProviderFactory.createProvider(providerConfig);
 
       // Get session history for context
       const recentMessages = await this.processor.readTranscript(transcriptPath);
@@ -133,8 +139,8 @@ export class TranscriptAnalyzer {
       }
 
       // Analyze with LLM
-      this.debug(`Calling LLM for analysis...`);
-      const analysis = await groq.analyzeExchange(
+      this.debug(`Calling ${this.config.aiProvider.toUpperCase()} LLM for analysis...`);
+      const analysis = await llmProvider.analyzeExchange(
         context.userRequest || 'No specific request',
         context.claudeActions || [],
         sessionHistory,
@@ -258,9 +264,16 @@ export class TranscriptAnalyzer {
       stdio: 'ignore',
       env: {
         ...process.env,
+        // Provider selection
+        PET_AI_PROVIDER: this.config.aiProvider,
+        // Provider-specific configuration
         PET_GROQ_API_KEY: this.config.groqApiKey,
         PET_GROQ_MODEL: this.config.groqModel,
         PET_GROQ_TIMEOUT: String(this.config.groqTimeout),
+        PET_OPENAI_API_KEY: this.config.openaiApiKey,
+        PET_OPENAI_MODEL: this.config.openaiModel,
+        PET_OPENAI_TIMEOUT: String(this.config.openaiTimeout),
+        // Other config
         PET_FEEDBACK_BATCH_SIZE: String(this.config.batchSize),
         PET_FEEDBACK_DEBUG: process.env.PET_FEEDBACK_DEBUG,
         PET_FEEDBACK_LOG_DIR: process.env.PET_FEEDBACK_LOG_DIR

@@ -103,8 +103,15 @@ export interface FeedbackConfig {
   staleLockTime: number;
   dbPath: string;
   dbMaxSize: number;
+  // AI Provider Selection
+  aiProvider: 'groq' | 'openai';
+  // Legacy individual provider configs (for backward compatibility)
   groqApiKey?: string;
   groqModel: string;
   groqTimeout: number;
   groqMaxRetries: number;
+  openaiApiKey?: string;
+  openaiModel: string;
+  openaiTimeout: number;
+  openaiMaxRetries: number;
 }

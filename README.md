@@ -37,7 +37,7 @@ Your pet generates thoughts based on what's actually happening in your coding se
 
 ### Live Examples
 ```
-💭 "GroqClient.ts? That's... actually where the answers live!"
+💭 "OpenAIClient.ts? That's... actually where the answers live!"
 💭 "Back to README.md? There must be gold in there!"  
 💭 "Straight to the bug! Someone came prepared today!"
 💭 "AnimationManager.ts again? This pet's getting dizzy!"
@@ -60,7 +60,7 @@ flowchart TB
         F --> H[🔧 Claude's actions]
         F --> I[🐾 Pet's current state]
         
-        G & H & I --> J[🤖 Groq LLM<br/>50ms response]
+        G & H & I --> J[🤖 AI Provider<br/>OpenAI or Groq]
     end
     
     subgraph "Decision Making"
@@ -85,19 +85,21 @@ flowchart TB
 1. **Message Storage**: Every Claude message gets summarized and stored in SQLite
 2. **Background Processing**: Spawns lightweight worker process for analysis
 3. **Context Building**: Loads user request + Claude's actions + conversation history
-4. **LLM Analysis**: Groq's ultra-fast API generates contextual observation
+4. **LLM Analysis**: Configurable AI provider (OpenAI/Groq) generates contextual observation
 5. **Smart Caching**: Stores feedback to prevent duplicate thoughts
 6. **Mood System**: Updates pet's mood based on Claude's behavior score
 
-**Why Groq?**
-- ⚡ **50ms responses** - Real-time reactions without lag
-- 💰 **Extremely cheap** - Practically free for personal use
-- 🚀 **Custom chips** - Purpose-built for instant LLM inference
-- 🎯 **GPT OSS 20B** - Understands code context perfectly
+**Flexible AI Provider Support:**
+- 🚀 **Choose your provider** - Switch between OpenAI and Groq at runtime
+- 🎯 **OpenAI** - High quality, reliable, well-documented with multiple models
+- ⚡ **Groq** - Ultra-fast inference with custom chips for instant reactions
+- 🔧 **Runtime switching** - Change providers without code changes
 
 ### Quick Setup (30 seconds!)
 ```bash
-# 1. Get free API key from https://console.groq.com/keys
+# 1. Get API key from your preferred provider:
+#    OpenAI: https://platform.openai.com/api-keys
+#    Groq: https://console.groq.com/keys
 # 2. Run setup script
 ./enable-feedback.sh
 # 3. That's it! Your pet now has AI powers! 🎉
@@ -110,19 +112,44 @@ To enable AI observations, set these environment variables in your shell profile
 **Required Variables:**
 ```bash
 export PET_FEEDBACK_ENABLED=true              # Must be true to enable
-export GROQ_API_KEY="your-api-key-here"       # Get from https://console.groq.com/keys
-# OR use PET_GROQ_API_KEY if you prefer the prefixed version
+
+# Choose your AI provider (defaults to OpenAI)
+export PET_AI_PROVIDER=openai                 # or 'groq' for ultra-fast responses
+
+# Provider-specific API keys
+export OPENAI_API_KEY="your-openai-key"       # Get from https://platform.openai.com/api-keys
+# OR export PET_OPENAI_API_KEY="your-openai-key"
+export GROQ_API_KEY="your-groq-key"           # Get from https://console.groq.com/keys  
+# OR export PET_GROQ_API_KEY="your-groq-key"
 ```
 
-**Optional Tuning:**
+**Provider-Specific Tuning:**
 ```bash
+# OpenAI Configuration (when PET_AI_PROVIDER=openai)
+export PET_OPENAI_MODEL="gpt-3.5-turbo"      # Good balance (default)
+# export PET_OPENAI_MODEL="gpt-4"             # Higher quality but slower
+# export PET_OPENAI_MODEL="gpt-4-turbo"       # Fast and high quality
+export PET_OPENAI_TIMEOUT=5000                # Request timeout in ms
+
+# Groq Configuration (when PET_AI_PROVIDER=groq)
 export PET_GROQ_MODEL="openai/gpt-oss-20b"   # Best quality (default)
 # export PET_GROQ_MODEL="llama-3.1-8b-instant" # Faster but less accurate
+export PET_GROQ_TIMEOUT=2000                  # Request timeout in ms
 
+# General Settings (both providers)
 export PET_FEEDBACK_CHECK_INTERVAL=5          # Check every N updates (default: 5)
 export PET_FEEDBACK_DEBUG=false               # Set true for debug logs
 export PET_FEEDBACK_LOG_DIR="$HOME/.claude/pets/logs"  # Where to save logs
 ```
+
+**Provider Comparison:**
+| Feature | OpenAI | Groq |
+|---------|--------|------|
+| **Speed** | Fast (1-3s) | Ultra-fast (50-200ms) |
+| **Quality** | Excellent | Very Good |
+| **Cost** | Moderate | Very Cheap |
+| **Models** | GPT-3.5/4 series | Llama, GPT variants |
+| **Reliability** | Very High | High |
 
 **Mood Thresholds** (when pet gets angry):
 ```bash
@@ -298,6 +325,19 @@ Your Tamagotchi is fully customizable through environment variables! Set these i
 | `PET_STATE_FILE` | `~/.claude/pets/claude-pet-state.json` | Where your pet's data lives |
 | `PET_NAME` | `Buddy` | Your pet's default name (can change with `/pet-name`) |
 | `PET_TYPE` | `dog` | Pet type (dog, cat, dragon, robot) |
+
+#### 🤖 AI Provider Configuration
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PET_FEEDBACK_ENABLED` | `false` | Enable AI-powered observations |
+| `PET_AI_PROVIDER` | `openai` | AI provider to use (`openai` or `groq`) |
+| `OPENAI_API_KEY` / `PET_OPENAI_API_KEY` | - | OpenAI API key |
+| `GROQ_API_KEY` / `PET_GROQ_API_KEY` | - | Groq API key |
+| `PET_OPENAI_MODEL` | `gpt-3.5-turbo` | OpenAI model to use |
+| `PET_GROQ_MODEL` | `openai/gpt-oss-20b` | Groq model to use |
+| `PET_OPENAI_TIMEOUT` | `5000` | OpenAI request timeout (ms) |
+| `PET_GROQ_TIMEOUT` | `2000` | Groq request timeout (ms) |
+| `PET_FEEDBACK_CHECK_INTERVAL` | `5` | Updates between AI checks |
 
 #### 📊 Display Options
 | Variable | Default | Description |

@@ -1,7 +1,8 @@
 import OpenAI from 'openai';
 import { LLMAnalysisResult } from '../engine/feedback/types';
+import { ILLMProvider } from './LLMProvider';
 
-export class OpenAIClient {
+export class OpenAIClient implements ILLMProvider {
   private client: OpenAI | null = null;
   private model: string;
   private timeout: number;

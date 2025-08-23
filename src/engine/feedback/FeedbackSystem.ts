@@ -27,10 +27,13 @@ export class FeedbackSystem {
       staleLockTime: config.feedbackStaleLockTime,
       dbPath: config.feedbackDbPath,
       dbMaxSize: config.feedbackDbMaxSize,
+      // AI Provider selection - default to 'openai' for backward compatibility
+      aiProvider: (process.env.PET_AI_PROVIDER as 'groq' | 'openai') || 'openai',
+      // Provider-specific configuration
       groqApiKey: config.groqApiKey,
       groqModel: config.groqModel,
       groqTimeout: config.groqTimeout,
-      groqMaxRetries: config.groqMaxRetries
+      groqMaxRetries: config.groqMaxRetries,
       openaiApiKey: config.openaiApiKey,
       openaiModel: config.openaiModel,
       openaiTimeout: config.openaiTimeout,
