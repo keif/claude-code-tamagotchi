@@ -12,6 +12,14 @@ async function main() {
     return;
   }
   
+  // Special handling for violation-check command
+  if (command === 'violation-check') {
+    // This command reads from stdin and needs special handling
+    const { violationCheck } = await import('./violation-check');
+    await violationCheck();
+    return;
+  }
+  
   // Convert CLI command to slash command format expected by CommandProcessor
   // Special handling for commands that need "pet-" prefix
   let slashCommand: string;

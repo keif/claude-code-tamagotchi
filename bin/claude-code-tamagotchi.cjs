@@ -12,7 +12,7 @@ const command = args[0];
 const commandArg = args[1];
 
 // Pet care commands that can be run from CLI
-const petCommands = ['feed', 'play', 'pet', 'clean', 'sleep', 'wake', 'stats', 'status', 'name', 'reset'];
+const petCommands = ['feed', 'play', 'pet', 'clean', 'sleep', 'wake', 'stats', 'status', 'name', 'reset', 'violation-check'];
 
 // If no command or "statusline" command, run the statusline
 if (!command || command === 'statusline') {

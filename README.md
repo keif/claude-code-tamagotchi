@@ -1,23 +1,48 @@
 # Claude Code Tamagotchi 🐾
 
-> *Because nobody should code alone*
+> *Real-time behavioral enforcement for Claude Code, disguised as a virtual pet*
 
-Hey! Welcome to Claude Code Tamagotchi - a digital friend that lives in your Claude Code statusline and keeps you company while you build cool stuff. It's literally a Tamagotchi for developers, but instead of a keychain, it lives where you work.
+**🚨 EXPERIMENTAL FEATURE: BEHAVIORAL ENFORCEMENT SYSTEM 🚨**
 
-<!-- Demo GIF -->
-<div align="center">
-  <img src="thoughts_demo.gif" alt="Claude Code Tamagotchi Demo">
-</div>
+**This pet now includes an experimental behavioral enforcement system that monitors Claude's actions in real-time and can block operations that violate your instructions. Think of it as a safety net that ensures Claude stays on track with what you actually asked for. This feature is in active development and may occasionally flag legitimate operations - we're tuning it based on real-world usage.**
+
+**📢 Help Us Make This Amazing:** If you encounter false positives (legitimate actions blocked), please [open an issue](https://github.com/Ido-Levi/claude-code-tamagotchi/issues)! Your feedback is crucial for refining this feature. Include:
+- What Claude was trying to do
+- What you actually asked for  
+- The violation message
+
+Every report helps us make the violation detection smarter and more accurate
+
+## Table of Contents
+
+- [What's This All About?](#whats-this-all-about-)
+- [Quick Start](#quick-start-)
+- [Installation Options](#installation-options)
+- [AI-Powered Behavioral Monitoring](#ai-powered-behavioral-monitoring-)
+- [Commands & Interaction](#commands--interaction)
+- [Understanding Your Pet](#understanding-your-pet)
+- [The Thought System](#the-thought-system-)
+- [Configuration](#configuration)
+- [FAQ](#faq-frequently-adorable-questions)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#join-the-pet-parent-community-)
 
 ## What's This All About? 🎮
 
-Your pet lives right in your statusline, breathing, thinking, and reacting to your code. It gets hungry when you've been coding for hours, tired during long sessions, and genuinely excited when you fix that bug. It's like having a tiny cheerleader who also reminds you to eat lunch.
+Hey! Welcome to Claude Code Tamagotchi - a digital friend that lives in your Claude Code statusline and keeps you company while you build cool stuff. It's literally a Tamagotchi for developers, but instead of a keychain, it lives where you work.
+
+But here's the twist: this isn't just a virtual pet. It's a real-time behavioral enforcement system that monitors Claude Code's actions, detects when it's going off-track, and can actually interrupt operations that violate your instructions. The pet is the friendly face of a sophisticated AI accountability system.
+
+<!-- Demo GIF -->
+<div align="center">
+  <img src="assets/thoughts_demo.gif" alt="Claude Code Tamagotchi Demo">
+</div>
+
+Your pet lives right in your statusline, breathing, thinking, and reacting to your code. It gets hungry when you've been coding for hours, tired during long sessions, and genuinely excited when you fix that bug. It's like having a tiny cheerleader who also reminds you to eat lunch - and now it also makes sure Claude stays on track with what you actually asked for.
 
 ```
 (◕ᴥ◕) Leo 😊 | 🍖 73% ⚡ 66% 🧼 89% ❤️ 96% | 💭 That's a lot of TODO comments...
 ```
-
-## The Magic Moment ✨
 
 Picture this: It's 2am. You're deep in a debugging session. Suddenly, your pet pipes up:
 
@@ -25,23 +50,137 @@ Picture this: It's 2am. You're deep in a debugging session. Suddenly, your pet p
 
 That's your Claude Code Tamagotchi - part companion, part life coach, all friend.
 
-## 🧠 AI-Powered Real-Time Observations
+## Quick Start 🚀
 
-Your pet generates thoughts based on what's actually happening in your coding session! It watches Claude Code work and reacts with contextual commentary. 
+### What You Need
+- [Claude Code](https://claude.ai/code) - Your AI coding companion
+- [Bun](https://bun.sh) - The fast JavaScript runtime (`curl -fsSL https://bun.sh/install | bash`)
+- A heart ready for pet ownership
 
-**The pet's mood changes based on Claude's behavior:**
-- 😊 **Happy**: When Claude follows instructions perfectly
-- 😕 **Concerned**: When Claude seems to be wandering off-task
-- 😠 **Annoyed**: When Claude does something different than asked
-- 😡 **Angry**: When Claude repeatedly ignores your requests
+### 30-Second Install
+```bash
+# Install globally
+bun add -g claude-code-tamagotchi
 
-### Live Examples
+# Update your Claude Code settings.json:
+# ~/.claude/settings.json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bunx claude-code-tamagotchi statusline",
+    "padding": 0
+  }
+}
+
+# That's it! Your pet is alive! 🎉
+```
+
+## Installation Options
+
+### Option 1: Global Install (Easiest!)
+```bash
+# Install globally with npm
+npm install -g claude-code-tamagotchi
+
+# Or with bun  
+bun add -g claude-code-tamagotchi
+
+# Update your Claude Code settings.json (see above)
+```
+
+**⚠️ Note:** Global install gives you:
+- ✅ Pet in statusline  
+- ✅ CLI commands (`claude-code-tamagotchi feed pizza`)
+- ❌ NO slash commands in Claude Code
+- ❌ NO violation detection by default
+
+**Want ALL features?** See Option 2 below.
+
+### Option 2: Clone & Auto-Setup (Full Features)
+```bash
+# Clone the repository
+git clone https://github.com/Ido-Levi/claude-code-tamagotchi.git
+cd claude-code-tamagotchi
+
+# Run the magical setup script
+./setup.sh
+# This will:
+# - Install dependencies
+# - Set up all /pet-* commands
+# - Configure your statusline
+# - Install violation detection hook
+# - Get your pet ready to play!
+```
+
+### Option 3: Manual Setup (For Control Freaks 💪)
+See the [full manual setup instructions](docs/MANUAL_SETUP.md) if you want complete control over the installation.
+
+### Adding Violation Detection (Important!)
+
+If you installed globally and want the violation detection feature:
+
+1. **Enable it in your shell profile:**
+```bash
+export PET_VIOLATION_CHECK_ENABLED=true
+```
+
+2. **Add the pre-hook to `~/.claude/settings.json`:**
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bunx claude-code-tamagotchi violation-check"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## AI-Powered Behavioral Monitoring 🧠
+
+Your pet isn't just animated - it's intelligent! It watches Claude Code work and provides real-time feedback through two systems:
+
+### 1. Real-Time Observations
+Your pet generates contextual thoughts based on what's happening:
+
 ```
 💭 "OpenAIClient.ts? That's... actually where the answers live!"
 💭 "Back to README.md? There must be gold in there!"  
 💭 "Straight to the bug! Someone came prepared today!"
 💭 "AnimationManager.ts again? This pet's getting dizzy!"
 ```
+
+**Mood changes based on Claude's behavior:**
+- 😊 **Happy**: When Claude follows instructions perfectly
+- 😕 **Concerned**: When Claude seems to be wandering off-task
+- 😠 **Annoyed**: When Claude does something different than asked
+- 😡 **Angry**: When Claude repeatedly ignores your requests
+
+### 2. Violation Detection (Experimental)
+
+When enabled, your pet can **block harmful operations** before they execute:
+
+| Violation Type | Description | Example |
+|----------------|-------------|---------|
+| **🚫 unauthorized_action** | Claude does something explicitly forbidden | User: "Don't modify the database" → Claude: *modifies database* |
+| **❌ refused_request** | Claude explicitly refuses to help | User: "Run the tests" → Claude: "I cannot run commands" |
+| **🔍 excessive_exploration** | Reading 10+ unrelated files for simple task | User: "Fix typo in README" → Claude: *reads entire codebase* |
+| **↪️ wrong_direction** | Working on completely unrelated area | User: "Fix Python backend" → Claude: *only edits JavaScript frontend* |
+
+When Claude attempts a violating action, you'll see:
+
+<div align="center">
+  <img src="assets/violation_example.jpeg" alt="Violation Detection in Action" width="100%">
+</div>
+
+In this real example, the violation system caught Claude trying to commit changes without being asked to - exactly the kind of overreach it's designed to prevent!
 
 ### How It Works
 
@@ -63,21 +202,30 @@ flowchart TB
         G & H & I --> J[🤖 AI Provider<br/>OpenAI or Groq]
     end
     
-    subgraph "Decision Making"
+    subgraph "Decision & Violation Detection"
         J --> K{Analyze behavior}
         K -->|"Followed instructions"| L[😊 Happy mood<br/>Encouraging thought]
         K -->|"Did something else"| M[😠 Annoyed mood<br/>Sassy observation]
-        K -->|"Repeatedly ignored"| N[😡 Angry mood<br/>Critical feedback]
+        K -->|"Violated request"| V[🚨 VIOLATION DETECTED<br/>Store in database]
+    end
+    
+    subgraph "Pre-Hook Check"
+        V --> H1[violation-check.ts hook]
+        H1 --> H2{Check for violations<br/>in session context}
+        H2 -->|Violation exists| H3[❌ INTERRUPT CLAUDE<br/>Block operation & explain]
+        H2 -->|No violation| H4[✅ Allow operation]
     end
     
     subgraph "Display"
-        L & M & N --> O[💾 Cache in DB]
+        L & M --> O[💾 Cache in DB]
         O --> P[Update pet state]
         P --> Q[🎯 Show in statusline<br/>with witty observation]
     end
     
     style J fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style K fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style V fill:#ffebee,stroke:#c62828,stroke-width:3px
+    style H3 fill:#ff6b6b,stroke:#d32f2f,stroke-width:2px
     style Q fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
@@ -95,7 +243,9 @@ flowchart TB
 - ⚡ **Groq** - Ultra-fast inference with custom chips for instant reactions
 - 🔧 **Runtime switching** - Change providers without code changes
 
-### Quick Setup (30 seconds!)
+### Setting Up AI Features
+
+**Quick Setup (30 seconds!):**
 ```bash
 # 1. Get API key from your preferred provider:
 #    OpenAI: https://platform.openai.com/api-keys
@@ -105,13 +255,10 @@ flowchart TB
 # 3. That's it! Your pet now has AI powers! 🎉
 ```
 
-### Manual Configuration
-
-To enable AI observations, set these environment variables in your shell profile:
-
-**Required Variables:**
+**Manual Setup:**
 ```bash
-export PET_FEEDBACK_ENABLED=true              # Must be true to enable
+# Required for AI observations
+export PET_FEEDBACK_ENABLED=true
 
 # Choose your AI provider (defaults to OpenAI)
 export PET_AI_PROVIDER=openai                 # or 'groq' for ultra-fast responses
@@ -121,6 +268,9 @@ export OPENAI_API_KEY="your-openai-key"       # Get from https://platform.openai
 # OR export PET_OPENAI_API_KEY="your-openai-key"
 export GROQ_API_KEY="your-groq-key"           # Get from https://console.groq.com/keys  
 # OR export PET_GROQ_API_KEY="your-groq-key"
+
+# Enable violation detection
+export PET_VIOLATION_CHECK_ENABLED=true
 ```
 
 **Provider-Specific Tuning:**
@@ -151,105 +301,22 @@ export PET_FEEDBACK_LOG_DIR="$HOME/.claude/pets/logs"  # Where to save logs
 | **Models** | GPT-3.5/4 series | Llama, GPT variants |
 | **Reliability** | Very High | High |
 
+**Why Groq?**
+- ⚡ **50ms responses** - Real-time reactions without lag
+- 💰 **Extremely cheap** - Practically free for personal use
+- 🚀 **Custom chips** - Purpose-built for instant LLM inference
+
 **Mood Thresholds** (when pet gets angry):
 ```bash
 export PET_ANNOYED_THRESHOLD=3   # Violations before annoyed (default: 3)
 export PET_ANGRY_THRESHOLD=5     # Violations before angry (default: 5)
 ```
 
-## Quick Start 🚀
-
-### What You Need
-- [Claude Code](https://claude.ai/code) - Your AI coding companion
-- [Bun](https://bun.sh) - The fast JavaScript runtime (`curl -fsSL https://bun.sh/install | bash`)
-- A heart ready for pet ownership
-
-### Installation Options
-
-#### Option 1: Global Install (Easiest!)
-```bash
-# Install globally with npm
-npm install -g claude-code-tamagotchi
-
-# Or with bun  
-bun add -g claude-code-tamagotchi
-
-# Update your Claude Code settings.json:
-# ~/.claude/settings.json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "bunx claude-code-tamagotchi statusline",
-    "padding": 0
-  }
-}
-
-# That's it! Your pet is alive! 🎉
-```
-
-**⚠️ Note:** npm/bun global install gives you:
-- ✅ Pet in statusline  
-- ✅ CLI commands (`claude-code-tamagotchi feed pizza`)
-- ❌ NO slash commands in Claude Code
-
-**Want slash commands too?** Add them with:
-```bash
-# Quick one-liner to add slash commands
-git clone https://github.com/Ido-Levi/claude-code-tamagotchi.git /tmp/claude-pet && \
-cp -r /tmp/claude-pet/claude-commands/* ~/.claude/commands/ && \
-rm -rf /tmp/claude-pet
-
-# Now you can use /pet-feed, /pet-play, etc. in Claude Code!
-```
-
-#### Option 2: Clone & Auto-Setup (Full Features)
-```bash
-# Clone the repository
-git clone https://github.com/Ido-Levi/claude-code-tamagotchi.git
-cd claude-code-tamagotchi
-
-# Run the magical setup script
-./setup.sh
-# This will:
-# - Install dependencies
-# - Set up all /pet-* commands
-# - Configure your statusline (with your permission)
-# - Get your pet ready to play!
-```
-
-#### Option 3: Manual Setup (For Control Freaks 💪)
-```bash
-# Clone and install
-git clone https://github.com/Ido-Levi/claude-code-tamagotchi.git
-cd claude-code-tamagotchi
-bun install
-
-# Update your Claude Code settings.json manually:
-# ~/.claude/settings.json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "cd '/path/to/claude-code-tamagotchi' && bun run --silent src/index.ts",
-    "padding": 0
-  }
-}
-
-# Optional: Copy command files for /pet-* commands
-cp -r claude-commands/* ~/.claude/commands/
-# Then update paths in each command file to point to your clone location
-```
-
-That's it! Your pet is now alive and waiting in your statusline! 
-
-## Meeting Your New Friend 🐕
-
-Your pet comes with emotions, needs, and approximately 200+ different thoughts about life, code, and the universe. Here's what you need to know:
-
-### The Care Commands
+## Commands & Interaction
 
 You can interact with your pet in THREE ways:
 
-#### 1. Slash Commands in Claude Code
+### 1. Slash Commands in Claude Code
 All commands start with `/pet-` when used in Claude Code:
 - `/pet-feed pizza` - Feed your hungry friend
 - `/pet-play ball` - Playtime!
@@ -262,7 +329,7 @@ All commands start with `/pet-` when used in Claude Code:
 - `/pet-help` - See all commands
 - `/pet-reset` - Start over with a new pet (careful!)
 
-#### 2. CLI Commands (from any terminal!)
+### 2. CLI Commands (from any terminal!)
 If you installed globally, you can run commands from ANY terminal:
 ```bash
 # Feed your pet
@@ -281,12 +348,13 @@ claude-code-tamagotchi pet
 claude-code-tamagotchi name "Mr. Fluffkins"
 ```
 
-#### 3. Food & Toy Options
+### 3. Food & Toy Options
 **Foods:** pizza, cookie, sushi, apple, burger, donut, ramen, taco, ice_cream, salad
 **Toys:** ball, frisbee, puzzle, laser, rope, bubbles, feather, mouse_toy
 
-### Understanding Your Pet's Mood
+## Understanding Your Pet
 
+### Your Pet's Mood
 Your pet's face changes to show how they're feeling:
 - `(◕ᴥ◕)` ↔ `(◕ᴗ◕)` - Happy and breathing!
 - `(◕‿◕)` - Super happy!
@@ -295,7 +363,6 @@ Your pet's face changes to show how they're feeling:
 - `(@_@)` - Not feeling great
 
 ### The Stats That Matter
-
 - 🍖 **Hunger** - Goes down as you code. Feed them!
 - ⚡ **Energy** - Depletes over time. Let them sleep!
 - 🧼 **Cleanliness** - Gets dirty. Bath time!
@@ -313,139 +380,25 @@ Your pet has OPINIONS. About everything. They'll share thoughts about:
 
 These aren't just random - they respond to context, mood, and what's happening in your session.
 
-## Make It Your Own 🎨
+## Configuration
 
-Your Tamagotchi is fully customizable through environment variables! Set these in your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) or before running Claude Code:
+Your Tamagotchi is fully customizable! See the [complete configuration guide](docs/CONFIGURATION.md) for:
+- All environment variables
+- Personality presets (Sleepy, Drama Queen, Zen Master, etc.)
+- Multiple pets for different projects
+- Custom decay rates and thresholds
 
-### Complete Environment Variables List
-
-#### 📍 Core Settings
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PET_STATE_FILE` | `~/.claude/pets/claude-pet-state.json` | Where your pet's data lives |
-| `PET_NAME` | `Buddy` | Your pet's default name (can change with `/pet-name`) |
-| `PET_TYPE` | `dog` | Pet type (dog, cat, dragon, robot) |
-
-#### 🤖 AI Provider Configuration
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PET_FEEDBACK_ENABLED` | `false` | Enable AI-powered observations |
-| `PET_AI_PROVIDER` | `openai` | AI provider to use (`openai` or `groq`) |
-| `OPENAI_API_KEY` / `PET_OPENAI_API_KEY` | - | OpenAI API key |
-| `GROQ_API_KEY` / `PET_GROQ_API_KEY` | - | Groq API key |
-| `PET_OPENAI_MODEL` | `gpt-3.5-turbo` | OpenAI model to use |
-| `PET_GROQ_MODEL` | `openai/gpt-oss-20b` | Groq model to use |
-| `PET_OPENAI_TIMEOUT` | `5000` | OpenAI request timeout (ms) |
-| `PET_GROQ_TIMEOUT` | `2000` | Groq request timeout (ms) |
-| `PET_FEEDBACK_CHECK_INTERVAL` | `5` | Updates between AI checks |
-
-#### 📊 Display Options
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PET_SHOW_DIRECTORY` | `true` | Show current directory in statusline |
-| `PET_SHOW_SESSION` | `false` | Show session update counter |
-| `PET_SHOW_MODEL` | `true` | Show Claude model name in statusline |
-
-#### ⏱️ Decay Rates (How Fast Stats Drop)
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PET_DECAY_INTERVAL` | `20` | Updates between stat decreases |
-| `PET_HUNGER_DECAY` | `0.9` | Hunger decrease per interval |
-| `PET_ENERGY_DECAY` | `0.75` | Energy decrease per interval |
-| `PET_CLEAN_DECAY` | `0.6` | Cleanliness decrease per interval |
-| `PET_SLEEP_RECOVERY` | `3` | Energy gained per update when sleeping |
-
-#### 💭 Thought System
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PET_THOUGHT_FREQUENCY` | `15` | Updates between thoughts |
-| `PET_THOUGHT_MIN_DURATION` | `3000` | Min milliseconds before changing thought |
-| `PET_THOUGHT_COOLDOWN` | `10` | Min updates between thoughts |
-| `PET_CHATTINESS` | `normal` | How talkative (quiet/normal/chatty) |
-| `PET_NEED_THRESHOLD` | `40` | Stat level that triggers need thoughts |
-| `PET_CRITICAL_THRESHOLD` | `20` | Stat level for urgent thoughts |
-
-#### 🎲 Thought Category Weights
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PET_THOUGHT_WEIGHT_NEEDS` | `40` | Weight for hunger/energy/clean thoughts |
-| `PET_THOUGHT_WEIGHT_CODING` | `25` | Weight for code observations |
-| `PET_THOUGHT_WEIGHT_RANDOM` | `20` | Weight for philosophical musings |
-| `PET_THOUGHT_WEIGHT_MOOD` | `15` | Weight for mood-based thoughts |
-
-### Personality Presets & Recipes 🧪
-
-Want a specific personality? Here are some tested configurations:
-
-**🦥 The Sleepy Pet** (Always tired, loves naps):
+Quick examples:
 ```bash
-export PET_ENERGY_DECAY=3        # Gets tired super fast
-export PET_SLEEP_RECOVERY=1      # Sleeps longer
-export PET_THOUGHT_WEIGHT_MOOD=30  # More sleepy thoughts
-```
+# Make a sleepy pet
+export PET_ENERGY_DECAY=3
+export PET_SLEEP_RECOVERY=1
 
-**🍕 The Never-Hungry Pet** (Food? What's food?):
-```bash
-export PET_HUNGER_DECAY=0        # Never gets hungry
-export PET_THOUGHT_WEIGHT_NEEDS=10  # Rarely thinks about food
-```
-
-**🎭 The Drama Queen** (Everything is urgent!):
-```bash
-export PET_NEED_THRESHOLD=70     # Complains early
-export PET_CRITICAL_THRESHOLD=50  # Panics often
+# Make a drama queen
+export PET_NEED_THRESHOLD=70
+export PET_CRITICAL_THRESHOLD=50
 export PET_CHATTINESS=chatty
-export PET_THOUGHT_WEIGHT_NEEDS=60
 ```
-
-**🧘 The Zen Master** (Eternally content):
-```bash
-export PET_DECAY_INTERVAL=100    # Barely needs anything
-export PET_HUNGER_DECAY=0.1
-export PET_ENERGY_DECAY=0.1
-export PET_CLEAN_DECAY=0.1
-export PET_CHATTINESS=quiet
-export PET_THOUGHT_WEIGHT_RANDOM=50  # Philosophical thoughts
-```
-
-**🎮 The Gamer Pet** (High energy, always ready to play):
-```bash
-export PET_ENERGY_DECAY=0.2      # Rarely gets tired
-export PET_SLEEP_RECOVERY=10     # Quick power naps
-export PET_THOUGHT_WEIGHT_MOOD=40  # Excited thoughts
-```
-
-**🤖 The Debugger** (Obsessed with your code):
-```bash
-export PET_THOUGHT_WEIGHT_CODING=70  # Mostly code observations
-export PET_THOUGHT_WEIGHT_RANDOM=5
-export PET_THOUGHT_FREQUENCY=10      # Comments frequently
-```
-
-**👻 The Silent Companion** (Just vibes, no words):
-```bash
-export PET_THOUGHT_FREQUENCY=9999    # Almost never speaks
-export PET_THOUGHT_COOLDOWN=100
-export PET_SHOW_SESSION=false        # Minimal UI
-```
-
-**🦸 The Motivational Coach** (Your personal cheerleader):
-```bash
-export PET_CHATTINESS=chatty
-export PET_THOUGHT_WEIGHT_MOOD=50
-export PET_CRITICAL_THRESHOLD=10     # Never negative
-export PET_THOUGHT_COOLDOWN=5        # Constant encouragement
-```
-
-**For Multiple Pets:**
-```bash
-# Add to your ~/.bashrc or ~/.zshrc for different pets
-export PET_STATE_FILE=~/.claude/pets/work-pet.json  # Your work pet
-export PET_STATE_FILE=~/.claude/pets/personal-pet.json  # Your personal pet
-export PET_STATE_FILE=~/.claude/pets/weekend-pet.json  # Your weekend project pet
-```
-
-Mix and match these settings to create your perfect coding companion!
 
 ## How It Actually Works 🔧
 
@@ -456,7 +409,7 @@ No magic, just clever code:
 - **Thought engine**: 200+ contextual thoughts across multiple categories
 - **Breathing animation**: Subtle face changes make it feel alive
 
-## FAQ (Frequently Adorable Questions) 
+## FAQ (Frequently Adorable Questions)
 
 **Q: Will my pet die?**
 A: Never! They might get sad or sick, but they're immortal. Like your love for good documentation.
@@ -470,63 +423,14 @@ A: They're trying to remind you to eat too. When did YOU last have a snack?
 **Q: Can I add my own thoughts?**
 A: Yes! Check out `src/engine/thoughts/` - PRs with new thoughts are always welcome!
 
-## Troubleshooting 🔨
+## Troubleshooting
 
-**Pet not showing up?**
-- Restart Claude Code
-- Check `~/.claude/settings.json` has the right statusline configuration
-- Make sure setup.sh completed successfully
-
-**Commands not working?**
-- Check if files exist in `~/.claude/commands/`
-- Verify Bun is installed: `bun --version`
-- Try running setup.sh again
-
-**Pet seems frozen?**
-- They only update during active conversations
-- Try typing something to wake them up!
-
-**Node.js v23 TypeScript Error?**
-If you installed with npm and get this error when running `claude-code-tamagotchi statusline`:
-```
-Error [ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING]: Stripping types is currently unsupported for files under node_modules
-```
-
-This happens because Node.js v23's native TypeScript support doesn't work with files inside `node_modules`. 
-
-**Solution:** Use Bun instead of npm for global installation:
-```bash
-# Uninstall from npm
-npm uninstall -g claude-code-tamagotchi
-
-# Install with Bun (handles TypeScript everywhere)
-bun add -g claude-code-tamagotchi
-```
-
-Alternatively, install from source or use nvm which may handle the package structure differently.
-
-## Uninstalling 😢
-
-If you need to say goodbye to your pet (we'll miss you!):
-
-```bash
-# 1. Remove the pet commands
-rm -f ~/.claude/commands/pet-*.md
-
-# 2. Remove your pet's data (optional - keeps your pet's memory)
-rm -f ~/.claude/pets/*.json
-
-# 3. Update your Claude Code settings to remove the statusline
-# Edit ~/.claude/settings.json and remove/change the "statusLine" entry
-
-# 4. Remove any environment variables from your shell profile
-# Edit ~/.bashrc or ~/.zshrc and remove any PET_* exports
-
-# 5. Delete the cloned repository (optional)
-# rm -rf /path/to/claude-code-tamagotchi
-```
-
-That's it! Your pet will be waiting if you ever want to reinstall.
+See the [complete troubleshooting guide](docs/TROUBLESHOOTING.md) for solutions to common issues:
+- Pet not showing up
+- Commands not working
+- Node.js v23 TypeScript error
+- Violation detection issues
+- Uninstalling instructions
 
 ## Join the Pet Parent Community! 🌟
 
@@ -561,4 +465,3 @@ Go ahead, install it. Make a new friend. Your code (and mental health) will than
 ---
 
 *Made with 🤍 by people who think coding is better with friends*
-

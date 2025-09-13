@@ -246,8 +246,8 @@ export class FeedbackSystem {
     }
     
     // Always try to get the latest feedback from the database
-    if (this.analyzer) {
-      const latestFeedback = this.analyzer.getCachedFeedback();
+    if (this.analyzer && this.currentSessionId) {
+      const latestFeedback = this.analyzer.getCachedFeedback(this.currentSessionId);
       if (latestFeedback && latestFeedback.length > 0) {
         const mostRecent = latestFeedback[0]; // Already sorted by recency
         if (mostRecent.funny_observation) {

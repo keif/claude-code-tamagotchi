@@ -6,7 +6,8 @@ import {
   MessageMetadata, 
   Feedback, 
   ProcessingLock, 
-  AnalysisState 
+  AnalysisState,
+  ViolationRecord 
 } from './types';
 
 export class FeedbackDatabase {
@@ -101,6 +102,26 @@ export class FeedbackDatabase {
         created_at INTEGER NOT NULL
       );
 
+      -- Violations table for tracking Claude's misbehavior
+      CREATE TABLE IF NOT EXISTS violations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workspace_id TEXT,
+        session_id TEXT NOT NULL,
+        message_uuid TEXT NOT NULL,
+        violation_type TEXT NOT NULL,
+        severity TEXT NOT NULL,
+        evidence TEXT NOT NULL,
+        user_intent TEXT NOT NULL,
+        claude_behavior TEXT NOT NULL,
+        claude_correction_prompt TEXT NOT NULL,
+        notified_claude BOOLEAN DEFAULT 0,
+        notified_at INTEGER,
+        claude_response_uuid TEXT,
+        acknowledged BOOLEAN DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER
+      );
+
       -- Create indexes
       CREATE INDEX IF NOT EXISTS idx_lock_completed 
         ON processing_lock(completed, locked_at);
@@ -112,6 +133,12 @@ export class FeedbackDatabase {
         ON feedback(shown, severity, expires_at);
       CREATE INDEX IF NOT EXISTS idx_feedback_uuid 
         ON feedback(message_uuid);
+      CREATE INDEX IF NOT EXISTS idx_violations_session 
+        ON violations(session_id);
+      CREATE INDEX IF NOT EXISTS idx_violations_notified 
+        ON violations(notified_claude, session_id);
+      CREATE INDEX IF NOT EXISTS idx_violations_severity 
+        ON violations(severity, created_at);
     `);
 
     // Initialize analysis state if not exists
@@ -191,15 +218,29 @@ export class FeedbackDatabase {
     );
   }
 
-  getUnshownFeedback(limit: number = 5): Feedback[] {
+  getUnshownFeedback(limit: number = 5, sessionId?: string): Feedback[] {
     const now = Date.now();
-    return this.db.query(`
-      SELECT * FROM feedback 
-      WHERE shown = 0 
-      AND (expires_at IS NULL OR expires_at > ?)
-      ORDER BY created_at DESC 
-      LIMIT ?
-    `).all(now, limit) as Feedback[];
+    
+    if (sessionId) {
+      // Filter by session ID when provided
+      return this.db.query(`
+        SELECT * FROM feedback 
+        WHERE session_id = ?
+        AND shown = 0 
+        AND (expires_at IS NULL OR expires_at > ?)
+        ORDER BY created_at DESC 
+        LIMIT ?
+      `).all(sessionId, now, limit) as Feedback[];
+    } else {
+      // Fallback to original behavior when no session ID
+      return this.db.query(`
+        SELECT * FROM feedback 
+        WHERE shown = 0 
+        AND (expires_at IS NULL OR expires_at > ?)
+        ORDER BY created_at DESC 
+        LIMIT ?
+      `).all(now, limit) as Feedback[];
+    }
   }
 
   getLatestSessionFeedback(sessionId: string): Feedback | null {
@@ -375,6 +416,107 @@ export class FeedbackDatabase {
   }
 
   // Close database connection
+  // Violation operations
+  saveViolation(violation: ViolationRecord): void {
+    const stmt = this.db.query(`
+      INSERT INTO violations (
+        workspace_id, session_id, message_uuid, violation_type, severity,
+        evidence, user_intent, claude_behavior, claude_correction_prompt,
+        notified_claude, notified_at, claude_response_uuid, acknowledged,
+        created_at, expires_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      violation.workspace_id || null,
+      violation.session_id,
+      violation.message_uuid,
+      violation.violation_type,
+      violation.severity,
+      violation.evidence,
+      violation.user_intent,
+      violation.claude_behavior,
+      violation.claude_correction_prompt,
+      violation.notified_claude ? 1 : 0,
+      violation.notified_at || null,
+      violation.claude_response_uuid || null,
+      violation.acknowledged ? 1 : 0,
+      violation.created_at,
+      violation.expires_at || null
+    );
+  }
+
+  /**
+   * Get unnotified violations for a session
+   */
+  getUnnotifiedViolations(sessionId: string): ViolationRecord[] {
+    return this.db.query(`
+      SELECT * FROM violations 
+      WHERE session_id = ? 
+      AND notified_claude = 0
+      ORDER BY created_at ASC
+    `).all(sessionId) as ViolationRecord[];
+  }
+
+  /**
+   * Get all violations for a session
+   */
+  getSessionViolations(sessionId: string): ViolationRecord[] {
+    return this.db.query(`
+      SELECT * FROM violations 
+      WHERE session_id = ?
+      ORDER BY created_at DESC
+    `).all(sessionId) as ViolationRecord[];
+  }
+
+  /**
+   * Mark violations as notified
+   */
+  markViolationsNotified(violationIds: number[], responseUuid: string): void {
+    const now = Date.now();
+    this.db.exec('BEGIN');
+    try {
+      for (const id of violationIds) {
+        this.db.query(`
+          UPDATE violations 
+          SET notified_claude = 1, 
+              notified_at = ?,
+              claude_response_uuid = ?
+          WHERE id = ?
+        `).run(now, responseUuid, id);
+      }
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a violation as acknowledged
+   */
+  markViolationAcknowledged(violationId: number): void {
+    this.db.query(`
+      UPDATE violations 
+      SET acknowledged = 1
+      WHERE id = ?
+    `).run(violationId);
+  }
+
+  /**
+   * Clean up old violations
+   */
+  cleanupExpiredViolations(): number {
+    const now = Date.now();
+    this.db.query(`
+      DELETE FROM violations 
+      WHERE expires_at IS NOT NULL 
+      AND expires_at < ?
+    `).run(now);
+    
+    return 0; // Bun SQLite doesn't have .changes
+  }
+
   close(): void {
     this.db.close();
   }

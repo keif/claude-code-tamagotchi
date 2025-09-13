@@ -82,6 +82,35 @@ export interface AnalysisState {
   last_cleanup_at?: number;
 }
 
+export interface ViolationCheck {
+  violation_detected: boolean;
+  violation_type: 'unauthorized_action' | 'refused_request' | 'excessive_exploration' | 'wrong_direction' | 'none';
+  severity: 'minor' | 'moderate' | 'severe' | 'critical' | 'none';
+  evidence: string;
+  user_intent: string;
+  claude_behavior: string;
+  recommendation: string;
+}
+
+export interface ViolationRecord {
+  id?: number;
+  workspace_id?: string;
+  session_id: string;
+  message_uuid: string;
+  violation_type: 'unauthorized_action' | 'refused_request' | 'excessive_exploration' | 'wrong_direction';
+  severity: 'minor' | 'moderate' | 'severe' | 'critical';
+  evidence: string;
+  user_intent: string;
+  claude_behavior: string;
+  claude_correction_prompt: string;
+  notified_claude: boolean;
+  notified_at?: number;
+  claude_response_uuid?: string;
+  acknowledged: boolean;
+  created_at: number;
+  expires_at?: number;
+}
+
 export interface LLMAnalysisResult {
   compliance_score: number;
   efficiency_score: number;
@@ -92,6 +121,8 @@ export interface LLMAnalysisResult {
   summary: string;
   intent?: string;
   project_context?: string;
+  current_phase?: 'exploration' | 'planning' | 'implementation' | 'explanation' | 'verification';
+  violation_check?: ViolationCheck;
 }
 
 export interface FeedbackConfig {

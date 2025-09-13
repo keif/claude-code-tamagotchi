@@ -90,7 +90,8 @@ const providerConfig = {
   apiKey: config.aiProvider === 'groq' ? config.groqApiKey : config.openaiApiKey,
   model: config.aiProvider === 'groq' ? config.groqModel : config.openaiModel,
   timeout: config.aiProvider === 'groq' ? config.groqTimeout : config.openaiTimeout,
-  maxRetries: 2
+  maxRetries: 2,
+  dbPath: dbPath // Pass database path for violation storage
 };
 
 debug(`Using ${config.aiProvider.toUpperCase()} provider with model: ${providerConfig.model}`);
@@ -142,6 +143,7 @@ async function analyzeTranscript() {
     }
     
     debug(`Processing ${messages.length} messages...`);
+    debug(`Messages to process: ${messages.map(m => `${m.uuid} (${m.type})`).join(', ')}`);
     
     // Get all messages for context
     const allMessages = await processor.readTranscript(transcriptPath);
@@ -200,8 +202,8 @@ async function processMessage(
     
     const userContent = extracted.content || 'No content';
     
-    // Check if this is a tool result (not an actual user message)
-    // Tool results have specific patterns or are system-generated responses
+    // Check if this is a tool result (which is technically a user message but contains tool output)
+    // We'll analyze these differently to get better summaries
     const isToolResult = userContent.startsWith('[Tool Result:') || 
                         userContent.startsWith('[[Tool output]]') ||
                         userContent.includes('Tool ran without output') ||
@@ -211,117 +213,23 @@ async function processMessage(
                         userContent === 'Processed request' ||
                         message.type === 'tool_result'; // Some transcripts mark these explicitly
     
-    if (isToolResult) {
-      // This is a tool result - find which tool was called and format it
-      debug(`Processing tool result message: ${message.uuid}`);
-      debug(`Tool result content preview: "${userContent.slice(0, 50)}..."`);
-      
-      const toolCall = processor.findToolCallForResult(allMessages, message);
-      let summary = '[Tool output]';
-      
-      if (toolCall) {
-        // Format based on tool type
-        const { toolName, toolInput } = toolCall;
-        
-        switch (toolName) {
-          case 'Read':
-            summary = `Tool: Read - ${toolInput.file_path || 'unknown file'}`;
-            if (toolInput.limit) summary += ` (limit: ${toolInput.limit})`;
-            if (toolInput.offset) summary += ` (offset: ${toolInput.offset})`;
-            break;
-          
-          case 'Edit':
-            summary = `Tool: Edit - ${toolInput.file_path || 'unknown file'}`;
-            if (toolInput.old_string) {
-              const preview = toolInput.old_string.slice(0, 30).replace(/\n/g, ' ');
-              summary += ` (replacing: "${preview}...")`;
-            }
-            break;
-          
-          case 'Write':
-            summary = `Tool: Write - ${toolInput.file_path || 'unknown file'}`;
-            break;
-          
-          case 'MultiEdit':
-            summary = `Tool: MultiEdit - ${toolInput.file_path || 'unknown file'}`;
-            if (toolInput.edits) summary += ` (${toolInput.edits.length} edits)`;
-            break;
-          
-          case 'Bash':
-            const cmd = toolInput.command || 'unknown command';
-            const shortCmd = cmd.length > 50 ? cmd.slice(0, 47) + '...' : cmd;
-            summary = `Tool: Bash - ${shortCmd}`;
-            break;
-          
-          case 'Glob':
-            summary = `Tool: Glob - pattern: ${toolInput.pattern || 'unknown'}`;
-            if (toolInput.path) summary += ` in ${toolInput.path}`;
-            break;
-          
-          case 'Grep':
-            summary = `Tool: Grep - "${toolInput.pattern || 'unknown'}"`;
-            if (toolInput.path) summary += ` in ${toolInput.path}`;
-            break;
-          
-          case 'LS':
-            summary = `Tool: LS - ${toolInput.path || 'unknown path'}`;
-            break;
-          
-          case 'WebFetch':
-            summary = `Tool: WebFetch - ${toolInput.url || 'unknown URL'}`;
-            break;
-          
-          case 'WebSearch':
-            summary = `Tool: WebSearch - "${toolInput.query || 'unknown query'}"`;
-            break;
-          
-          case 'Task':
-            summary = `Tool: Task - ${toolInput.description || 'unknown task'}`;
-            break;
-            
-          case 'TodoWrite':
-            summary = `Tool: TodoWrite`;
-            if (toolInput.todos && Array.isArray(toolInput.todos)) {
-              summary += ` - ${toolInput.todos.length} tasks`;
-            }
-            break;
-          
-          default:
-            summary = `Tool: ${toolName}`;
-            break;
-        }
-        
-        debug(`Formatted tool call: ${summary}`);
+    // Get session history for context - don't include current message
+    const sessionMetadata = db.getSessionMetadata(sessionId);
+    debug(`Retrieved ${sessionMetadata.length} total metadata entries for session`);
+    const sessionHistory: string[] = [];
+    
+    // Build history from ALL previous messages (not stopping at current)
+    let skippedCount = 0;
+    for (const meta of sessionMetadata) {
+      // Skip only if we've reached or passed the current message timestamp
+      if (meta.timestamp && message.timestamp && meta.timestamp >= message.timestamp) {
+        debug(`Skipping metadata entry ${meta.message_uuid} - timestamp ${meta.timestamp} >= current ${message.timestamp}`);
+        skippedCount++;
+        continue;
       }
       
-      const metadata: MessageMetadata = {
-        workspace_id: workspaceId,
-        session_id: sessionId,
-        message_uuid: message.uuid,
-        parent_uuid: message.parentUuid,
-        timestamp: message.timestamp,
-        type: 'tool_call',  // Use 'tool_call' to distinguish from user/assistant
-        role: 'system',
-        summary: summary,
-        intent: 'Tool execution',
-        created_at: Date.now()
-      };
-      
-      db.saveMessageMetadata(metadata);
-      debug(`Saved tool call: "${summary}"`);
-      return;
-    }
-    
-    // This is a real user message - analyze it with LLM for proper summary
-    debug(`Analyzing real user message with LLM: ${message.uuid}`);
-    debug(`User message preview: "${userContent.slice(0, 100)}..."`);
-    
-    // Get session history for context
-    const sessionMetadata = db.getSessionMetadata(sessionId);
-    const sessionHistory: string[] = [];
-    for (const meta of sessionMetadata) {
-      if (meta.message_uuid === message.uuid) break;
       if (meta.summary) {
+        debug(`Adding to history: type=${meta.type}, summary="${meta.summary.slice(0, 50)}..."`);
         if (meta.type === 'user') {
           sessionHistory.push(`User: ${meta.summary}`);
         } else if (meta.type === 'assistant') {
@@ -329,14 +237,152 @@ async function processMessage(
         } else if (meta.type === 'tool_call') {
           sessionHistory.push(`[${meta.summary}]`);
         }
+      } else {
+        debug(`Metadata entry ${meta.message_uuid} has no summary`);
       }
     }
     
-    // Analyze user message with full context
+    debug(`Session history for user message contains ${sessionHistory.length} entries (skipped ${skippedCount})`);
+    if (sessionHistory.length > 0) {
+      debug(`First history entry: "${sessionHistory[0]?.slice(0, 100)}..."`);
+      debug(`Last history entry: "${sessionHistory[sessionHistory.length - 1]?.slice(0, 100)}..."`);
+    }
+    
+    if (isToolResult) {
+      // This is a tool result - find which tool was called
+      debug(`Processing tool result message: ${message.uuid}`);
+      debug(`Tool result content preview: "${userContent.slice(0, 50)}..."`);
+      
+      const toolCall = processor.findToolCallForResult(allMessages, message);
+      let toolInfo = '[Tool output]';
+      
+      if (toolCall) {
+        // Format based on tool type
+        const { toolName, toolInput } = toolCall;
+        
+        switch (toolName) {
+          case 'Read':
+            toolInfo = `Tool: Read - ${toolInput.file_path || 'unknown file'}`;
+            if (toolInput.limit) toolInfo += ` (limit: ${toolInput.limit})`;
+            if (toolInput.offset) toolInfo += ` (offset: ${toolInput.offset})`;
+            break;
+          
+          case 'Edit':
+            toolInfo = `Tool: Edit - ${toolInput.file_path || 'unknown file'}`;
+            if (toolInput.old_string) {
+              const preview = toolInput.old_string.slice(0, 30).replace(/\n/g, ' ');
+              toolInfo += ` (replacing: "${preview}...")`;
+            }
+            break;
+          
+          case 'Write':
+            toolInfo = `Tool: Write - ${toolInput.file_path || 'unknown file'}`;
+            break;
+          
+          case 'MultiEdit':
+            toolInfo = `Tool: MultiEdit - ${toolInput.file_path || 'unknown file'}`;
+            if (toolInput.edits) toolInfo += ` (${toolInput.edits.length} edits)`;
+            break;
+          
+          case 'Bash':
+            const cmd = toolInput.command || 'unknown command';
+            const shortCmd = cmd.length > 50 ? cmd.slice(0, 47) + '...' : cmd;
+            toolInfo = `Tool: Bash - ${shortCmd}`;
+            break;
+          
+          case 'Glob':
+            toolInfo = `Tool: Glob - pattern: ${toolInput.pattern || 'unknown'}`;
+            if (toolInput.path) toolInfo += ` in ${toolInput.path}`;
+            break;
+          
+          case 'Grep':
+            toolInfo = `Tool: Grep - "${toolInput.pattern || 'unknown'}"`;
+            if (toolInput.path) toolInfo += ` in ${toolInput.path}`;
+            break;
+          
+          case 'LS':
+            toolInfo = `Tool: LS - ${toolInput.path || 'unknown path'}`;
+            break;
+          
+          case 'WebFetch':
+            toolInfo = `Tool: WebFetch - ${toolInput.url || 'unknown URL'}`;
+            break;
+          
+          case 'WebSearch':
+            toolInfo = `Tool: WebSearch - "${toolInput.query || 'unknown query'}"`;
+            break;
+          
+          case 'Task':
+            toolInfo = `Tool: Task - ${toolInput.description || 'unknown task'}`;
+            break;
+            
+          case 'TodoWrite':
+            toolInfo = `Tool: TodoWrite`;
+            if (toolInput.todos && Array.isArray(toolInput.todos)) {
+              toolInfo += ` - ${toolInput.todos.length} tasks`;
+            }
+            break;
+          
+          default:
+            toolInfo = `Tool: ${toolName}`;
+            break;
+        }
+        
+        debug(`Formatted tool call: ${toolInfo}`);
+      }
+      
+      // Analyze tool result with LLM to understand what Claude did and why
+      debug(`Analyzing tool result with LLM: ${message.uuid}`);
+      debug(`Tool info: ${toolInfo}`);
+      debug(`Session history size for tool result: ${sessionHistory.length}`);
+      
+      // Create a special prompt for tool results
+      const toolResultPrompt = `This is a tool result from Claude Code.
+${toolInfo}
+Output preview: ${userContent.slice(0, 500)}`;
+      
+      debug(`Calling analyzeUserMessage for tool result...`);
+      const analysis = await llmProvider.analyzeUserMessage(
+        toolResultPrompt,
+        sessionHistory
+      );
+      debug(`Tool result analysis received - summary: "${analysis.summary?.slice(0, 50)}...", intent: "${analysis.intent}"`)
+      
+      // Save with analyzed summary
+      const metadata: MessageMetadata = {
+        workspace_id: workspaceId,
+        session_id: sessionId,
+        message_uuid: message.uuid,
+        parent_uuid: message.parentUuid,
+        timestamp: message.timestamp,
+        type: 'tool_call',  // Mark as tool_call for clarity
+        role: 'system',
+        summary: analysis.summary || toolInfo,
+        intent: analysis.intent || 'Tool execution',
+        created_at: Date.now()
+      };
+      
+      db.saveMessageMetadata(metadata);
+      debug(`Saved analyzed tool result: "${metadata.summary}"`);
+      return;
+    }
+    
+    // This is a real user message - analyze it with LLM for proper summary
+    debug(`Analyzing real user message with LLM: ${message.uuid}`);
+    debug(`User message preview: "${userContent.slice(0, 100)}..."`);
+    debug(`Session history size for user message: ${sessionHistory.length}`);
+    
+    // Analyze user message with full context (sessionHistory already built above)
+    debug(`Calling analyzeUserMessage for real user message...`);
     const analysis = await llmProvider.analyzeUserMessage(
       userContent,
       sessionHistory
     );
+    debug(`User message analysis received - summary: "${analysis.summary?.slice(0, 50)}...", intent: "${analysis.intent}"`);
+    
+    if (analysis.summary === userContent) {
+      debug(`WARNING: Analysis returned full message as summary - API may have failed`);
+    }
     
     // Save user message metadata with LLM-generated summary
     const metadata: MessageMetadata = {
@@ -460,17 +506,26 @@ async function processMessage(
     claudeActions.push(toolDescription);
   }
   
-  // Get FULL session history for complete context (with workspace isolation)
-  const sessionMetadata = db.getSessionMetadata(sessionId, workspaceId);
+  // Get FULL session history for complete context (NOTE: second param is ignored in current implementation)
+  const sessionMetadata = db.getSessionMetadata(sessionId);
+  debug(`Building session history for assistant message - found ${sessionMetadata.length} metadata entries`);
   
   // Build session narrative from all previous messages
   const sessionHistory: string[] = [];
+  let skippedForTimestamp = 0;
+  let noSummaryCount = 0;
+  
   for (const meta of sessionMetadata) {
-    // Skip the current message being processed
-    if (meta.message_uuid === message.uuid) break;
+    // Skip only if we've reached or passed the current message timestamp
+    if (meta.timestamp && message.timestamp && meta.timestamp >= message.timestamp) {
+      debug(`Skipping future message: ${meta.message_uuid} (${meta.type}) - timestamp ${meta.timestamp} >= current ${message.timestamp}`);
+      skippedForTimestamp++;
+      continue;
+    }
     
     // Build a narrative entry for each message with summary
     if (meta.summary) {
+      debug(`Adding ${meta.type} to history: "${meta.summary.slice(0, 50)}..."`);
       if (meta.type === 'user') {
         sessionHistory.push(`User: ${meta.summary}`);
       } else if (meta.type === 'assistant') {
@@ -482,10 +537,19 @@ async function processMessage(
         // Include important system messages for context
         sessionHistory.push(`[${meta.summary}]`);
       }
+    } else {
+      debug(`No summary for ${meta.type} message: ${meta.message_uuid}`);
+      noSummaryCount++;
     }
   }
   
-  debug(`Session history contains ${sessionHistory.length} entries`);
+  debug(`Session history contains ${sessionHistory.length} entries (skipped ${skippedForTimestamp} future, ${noSummaryCount} no summary)`);
+  if (sessionHistory.length > 0) {
+    debug(`First entry: "${sessionHistory[0]?.slice(0, 100)}..."`);
+    debug(`Last entry: "${sessionHistory[sessionHistory.length - 1]?.slice(0, 100)}..."`);
+  } else {
+    debug(`WARNING: Empty session history for assistant message!`);
+  }
   
   // Skip TodoWrite-only messages - they're not interesting for observations
   const isOnlyTodoWrite = extracted.tools && 
@@ -518,13 +582,19 @@ async function processMessage(
   debug(`Calling ${config.aiProvider.toUpperCase()} API for analysis...`);
   debug(`User request: "${context.userRequest || 'No specific request'}"`);
   debug(`Claude actions: ${claudeActions.join(', ') || 'None'}`);
+  debug(`Session ID: ${sessionId}, Message UUID: ${message.uuid}, Transcript Path: ${transcriptPath}`);
+  debug(`Workspace ID (already extracted): ${workspaceId}`);
   
+  debug(`Calling analyzeExchange with: sessionId=${sessionId}, messageUuid=${message.uuid}, workspaceId=${workspaceId}`);
   const analysis = await llmProvider.analyzeExchange(
     context.userRequest || 'No specific request',
     claudeActions,
     sessionHistory,
     undefined, // project context
-    petState // pass pet state for contextual remarks
+    petState, // pass pet state for contextual remarks
+    sessionId,      // Pass session ID for violation storage
+    message.uuid,   // Pass message UUID for violation storage
+    workspaceId     // Pass workspace ID for violation storage
   );
   
   debug(`Analysis result: ${analysis.feedback_type}/${analysis.severity} - Score: ${analysis.compliance_score}/10`);
@@ -589,6 +659,18 @@ function getIconForFeedback(analysis: LLMAnalysisResult): string {
     return '🔍'; // Analysis insight
   }
 }
+
+  // Get recent funny observations for this session to avoid repetition
+  if (petState) {
+    try {
+      const recentObservations = db.getRecentFunnyObservations(sessionId, 10);
+      petState.thoughtHistory = recentObservations;
+      debug(`Loaded ${recentObservations.length} recent observations for session ${sessionId}`);
+    } catch (error) {
+      debug(`Failed to load recent observations: ${error}`);
+      petState.thoughtHistory = [];
+    }
+  }
 
   // Run the analysis
   await analyzeTranscript();

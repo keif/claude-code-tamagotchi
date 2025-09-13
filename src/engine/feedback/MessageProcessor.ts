@@ -200,7 +200,7 @@ export class MessageProcessor {
             });
           } else if (item.type === 'tool_result' && item.content) {
             // Handle tool results (from user messages responding to tool use)
-            content += `[Tool Result: ${item.content.slice(0, 100)}...]\n`;
+            content += `[Tool Result: ${item.content}]\n`;
           }
         }
         if (debug) {
